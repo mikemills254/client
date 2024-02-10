@@ -1,10 +1,11 @@
+/* eslint-disable react-refresh/only-export-components */
 import Notification from './Notification'
 import { CiCalendar } from "react-icons/ci";
 import {useState, useEffect} from 'react';
 import Input from './Input';
 import { CiSearch } from "react-icons/ci";
 
-const getDate = () => {
+export const getDate = () => {
     const date = new Date();
 
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
