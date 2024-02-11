@@ -1,20 +1,40 @@
-import { Route, Routes, Navigate } from "react-router-dom";
-import Inbox from "./Pages/Inbox";
-import Urgent from "./Pages/Urgent";
-import Home from "./Pages/Home";
-import { io } from "socket.io-client";
+import { useEffect } from 'react';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import SignIn from './Pages/SignIn';
+import SignUp from './Pages/SignUp';
+import Home from './Pages/Home';
+import Inbox from './Pages/Inbox';
+import Urgent from './Pages/Urgent';
+import ForgotPass from './Pages/ForgotPass';
 
 export default function App() {
-    const socket = io.connect("http://localhost:9000");
-    console.log(socket)
+    const { isAuthenticated } = useSelector(state => state.auth);
+    const navigate = useNavigate();
+    console.log(isAuthenticated)
+
+    useEffect(() => {
+        if (isAuthenticated == false) {
+            navigate('/signin', { replace: true });
+        } else {
+            navigate('/dashboard', { replace: true })
+        }
+    }, [isAuthenticated, navigate]);
+    
     return (
-        <div className="w-screen h-screen flex flex-row">
         <Routes>
-            <Route path="/dashboard" element={<Home />} />
-            <Route path="/urgent_messages" element={<Urgent />} />
-            <Route path="/your_inbox" element={<Inbox />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {isAuthenticated && (
+                <>
+                    <Route path="/dashboard" element={<Home />} />
+                    <Route path="/your_inbox" element={<Inbox />} />
+                    <Route path="/urgent_messages" element={<Urgent />} />
+                    <Route path='/' element={<Navigate to={'/dashboard'} />} />
+                </>
+            )}
+    
+            <Route path="/signin" element={<SignIn />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="/forgotpass" element={<ForgotPass />} />
         </Routes>
-        </div>
     );
 }
