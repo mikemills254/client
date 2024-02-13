@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Logo from '../assets/logo.png';
 import { BsPatchExclamation } from "react-icons/bs";
-import { TbMessage2Bolt } from "react-icons/tb";
+// import { TbMessage2Bolt } from "react-icons/tb";
 import { VscAccount } from "react-icons/vsc";
 import { IoIosNotificationsOutline } from "react-icons/io";
 import { Link } from 'react-router-dom';
@@ -87,8 +87,9 @@ export default function SideBar() {
     };
 
     const handleLogOut = () => {
-        console.log("log out");
         dispatch(logout())
+        localStorage.removeItem("user")
+        localStorage.removeItem("socket_id")
     };
 
     const handleEditDetails = () => {
@@ -114,7 +115,7 @@ export default function SideBar() {
                         {
                             [
                                 ["Messages", <BsPatchExclamation size={20} color='#0e315d' />, "/dashboard"],
-                                ["Urgent", <TbMessage2Bolt size={20} color='#0e315d' />, "/urgent_messages"],
+                                // ["Urgent", <TbMessage2Bolt size={20} color='#0e315d' />, "/urgent_messages"],
                                 ["Inbox", <IoIosNotificationsOutline size={25} color='#0e315d' />, "/your_inbox"]
                             ].map(([title, icon, to], index) => (
                                 <Link key={index} to={to} className='links flex flex-row items-center gap-2 px-5 py-3 w-full cursor-pointer'>

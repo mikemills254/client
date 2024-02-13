@@ -11,30 +11,43 @@ import ForgotPass from './Pages/ForgotPass';
 export default function App() {
     const { isAuthenticated } = useSelector(state => state.auth);
     const navigate = useNavigate();
-    console.log(isAuthenticated)
 
     useEffect(() => {
-        if (isAuthenticated == false) {
-            navigate('/signin', { replace: true });
+        if (isAuthenticated) {
+            const currentPath = window.location.pathname;
+            if (
+                !['/dashboard', '/your_inbox', '/urgent_messages'].includes(currentPath)
+            ) {
+                navigate('/dashboard', { replace: true });
+            }
         } else {
-            navigate('/dashboard', { replace: true })
+            const currentPath = window.location.pathname;
+            if (
+                !['/signin', '/signup', '/forgotpass'].includes(currentPath)
+            ) {
+                navigate('/signin', { replace: true });
+            }
         }
     }, [isAuthenticated, navigate]);
     
+    
     return (
         <Routes>
-            {isAuthenticated && (
+            {isAuthenticated ? (
                 <>
                     <Route path="/dashboard" element={<Home />} />
                     <Route path="/your_inbox" element={<Inbox />} />
                     <Route path="/urgent_messages" element={<Urgent />} />
                     <Route path='/' element={<Navigate to={'/dashboard'} />} />
                 </>
+            ) : (
+                <>
+                    <Route path="/signin" element={<SignIn />} />
+                    <Route path="/signup" element={<SignUp />} />
+                    <Route path="/forgotpass" element={<ForgotPass />} />
+                    <Route path='*' element={<Navigate to={'/signin'} />} />
+                </>
             )}
-    
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/signup" element={<SignUp />} />
-            <Route path="/forgotpass" element={<ForgotPass />} />
         </Routes>
     );
 }

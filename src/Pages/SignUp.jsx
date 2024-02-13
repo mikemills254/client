@@ -11,20 +11,23 @@ import { useFormik } from 'formik'
 import { useDispatch } from 'react-redux'
 import { signup, failed } from '../../Utilities/authSlice'
 import { io } from 'socket.io-client'
+import { connectSuccess, connectFailure } from '../../Utilities/socketSlice';
 
 
-const connectToSocket = (token) => {
-    console.log(token)
-    const socket = io("http://localhost:9000", {
+
+export const ConnectToSocket = (data) => {
+    const socket = io.connect("http://localhost:9000", {
         auth: {
-            token: token
+            token: data
         }
-    })
+    });
 
     socket.on('connect', () => {
-        console.log("connected to socket", socket.id)
-    })
-}
+        localStorage.setItem("socket_id", socket.id)
+    });
+
+    return socket;
+};
 
 export default function SignUp() {
     const [isLoading, setIsLoading] = useState(false)
@@ -54,7 +57,7 @@ export default function SignUp() {
                     throw new Error('Please provide all the required fields');
                 }
                 
-                const url = "http://localhost:9000/api/v1/register";
+                const url = "http://localhost:9000/api/v1/agent/register";
                 const response = await fetch(url, {
                     method: 'POST',
                     body: JSON.stringify(values),
@@ -66,9 +69,22 @@ export default function SignUp() {
                 }
     
                 const data = await response.json();
-                console.log(data);
+                const socketData = {
+                    token: data.token,
+                    role: data.data.role
+                }
                 dispatch(signup({ user: data.data._id, token: data.token }))
-                connectToSocket(data.token);
+                localStorage.setItem("user", data.data._id)
+
+                const socket = ConnectToSocket(data.token);
+                if(socket){
+                    socket.emit("client_data", socketData)
+                    dispatch(connectSuccess(socket))
+                } else {
+                    dispatch(connectFailure())
+                    console.log("Unable to connect succesfully")
+                    return;
+                }
             } catch (error) {
                 console.error('Error signing up:', error.message);
                 alert(error.message);

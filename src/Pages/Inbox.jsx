@@ -9,12 +9,13 @@ import { HiOutlineArrowUpCircle } from "react-icons/hi2";
 import { GoPaperclip } from "react-icons/go";
 import Proptypes from 'prop-types'
 import { Modal, Button } from 'flowbite-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import RightBar from '../Components/RightBar';
 
-const Notifs = ({ onClick }) => {
+const Notifs = ({ onClick, name, message, date, notifStyles}) => {
     return(
         <div 
-            className='w-full flex flex-row min-h-16 gap-2 p-2 border-b-[1px] cursor-pointer bg-[#edfaff] rounded-sm'
+            className={ `${notifStyles} w-full flex flex-row min-h-16 gap-2 p-2 border-b-[1px] cursor-pointer bg-[#edfaff] rounded-sm`}
             onClick={onClick}
         >
             <section className='prof-image'>
@@ -27,13 +28,13 @@ const Notifs = ({ onClick }) => {
             </section>
             <section className='flex flex-col w-full'>
                 <div className='flex flex-row item-center justify-between w-full'>
-                    <small className='max-w-20 text-[15px] font-semibold'>Mike Mills </small>
-                    <small>12th Dec 2023</small>
+                    <small className='max-w-20 text-[15px] font-semibold'>{name}</small>
+                    <small>{date}</small>
                 </div>
                 <div>
                 <small className='text-ellipsis text-pretty overflow-hidden line-clamp-1'> 
-                    Lorem, ipsum dolor sit amet consectetur adipisicing elit. Fuga assumenda facilis quia impedit? Ea consectetur culpa sed repellendus veniam maxime quia possimus obcaecati, eum quaerat architecto amet sit autem quasi?
-                </small>
+                    {message}
+               </small>
                 </div>
             </section>
         </div>
@@ -45,8 +46,35 @@ Notifs.prototype = {
 }
 
 const Messages = () => {
-    return(
-        <div className='w-[25rem] h-full flex flex-col shadow-lg '>
+    const [myMessages, setMessages] = useState([]);
+
+    useEffect(() => {
+        const getMessages = async () => {
+            try {
+                const url = "http://localhost:9000/api/v1/message";
+                const response = await fetch(url, {
+                    method: 'GET'
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                setMessages(data.data);
+            } catch (error) {
+                console.log(error.message);
+            }
+        };
+        getMessages();
+    }, []);
+
+    const myId = localStorage.getItem("user");
+
+    const handleOpened = id => {
+        alert(id)
+    }
+    
+    return (
+        <div className='w-full h-full flex flex-col shadow-lg '>
             <div className='p-3 flex flex-col bg-[#83dfff]'>
                 <p>Chats</p>
                 <Input
@@ -55,28 +83,23 @@ const Messages = () => {
                 />
             </div>
             <div className='flex flex-col overflow-y-auto no-scrollbar'>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
-                <Notifs/>
+                {myMessages.map((item, index) => 
+                    item.agent === myId && (
+                        <Notifs
+                            key={index}
+                            name={item.sender}
+                            date={item.createdAt}
+                            message={item.content}
+                            notifStyles={item.urgency === 'Urgent' ? "bg-[red]" : ""}
+                            onClick={() => handleOpened(item._id)}
+                        />
+                    )
+                )}
             </div>
         </div>
-    )
-}
+    );
+};
+
 
 
 const QuickReplyModal = ({ show, onClose, selected }) => {
@@ -135,60 +158,61 @@ const QuickReplyModal = ({ show, onClose, selected }) => {
 };
   
 
-const RespondArea = () => {
-    const [ isModal, setModal ] = useState(false)
-    const [ isResponse, setResponse ] = useState('')
-    return(
-        <>
-            <QuickReplyModal show={isModal} onClose={() => setModal(false)} selected={(item) => setResponse(item)} />
-            <div className='w-full h-full flex flex-col'>
-                <div className='messages-top flex flex-row gap-2 items-center justify-between py-2 px-3 bg-[#83dfff]'>
-                    <div className='flex flex-row items-center gap-3'>
-                        <div className='h-10 w-10 rounded-full bg-white flex flex-col items-center justify-center text-[#007bff]'>
-                            CQ
-                        </div>
-                        <p>Mike Mills</p>
-                    </div>
-                    <div className=''>
-                        <CiSearch size={25}/>
-                    </div>
-                </div>
-                <div className='h-full overflow-y-auto no-scrollbar shadow-inner p-3'>
-                    <Notification/> 
-                </div>
-                <div className='h-16 flex flex-row items-center px-2 bg-[#83dfff] justify-center'>
-                    <Input
-                        placeholder={"Type message here"}
-                        IconAfter={() => (
-                            <div className='flex flex-row gap-2 px-2 items-center'>
-                                {[
-                                    <HiOutlineArrowUpCircle key="upArrow" size={20}/>,
-                                ]}
-                            </div>
-                        )}
-                        IconBefore={() => (
-                                <div className='flex flex-row gap-4 px-2 items-center h-full'>
-                                    <GoPaperclip size={20}/>
-                                    <MdOutlineQuickreply key="quickReply" size={18} onClick={() => setModal(true)} />
-                                </div>
-                            )}
-                        ContainerStyles={"w-[50rem] border-none"}
-                        InputStyles={"pl-5"}
-                        value={isResponse}
-                        onChange={(item) => setResponse(item.target.value)}
-                    />
-                </div>
-            </div>
-        </>
-    )
-}
+// const RespondArea = () => {
+//     const [ isModal, setModal ] = useState(false)
+//     const [ isResponse, setResponse ] = useState('')
+//     return(
+//         <>
+//             <QuickReplyModal show={isModal} onClose={() => setModal(false)} selected={(item) => setResponse(item)} />
+//             <div className='w-full h-full flex flex-col'>
+//                 <div className='messages-top flex flex-row gap-2 items-center justify-between py-2 px-3 bg-[#83dfff]'>
+//                     <div className='flex flex-row items-center gap-3'>
+//                         <div className='h-10 w-10 rounded-full bg-white flex flex-col items-center justify-center text-[#007bff]'>
+//                             CQ
+//                         </div>
+//                         <p>Mike Mills</p>
+//                     </div>
+//                     <div className=''>
+//                         <CiSearch size={25}/>
+//                     </div>
+//                 </div>
+//                 <div className='h-full overflow-y-auto no-scrollbar shadow-inner p-3'>
+//                     <Notification/> 
+//                 </div>
+//                 <div className='h-16 flex flex-row items-center px-2 bg-[#83dfff] justify-center'>
+//                     <Input
+//                         placeholder={"Type message here"}
+//                         IconAfter={() => (
+//                             <div className='flex flex-row gap-2 px-2 items-center'>
+//                                 {[
+//                                     <HiOutlineArrowUpCircle key="upArrow" size={20}/>,
+//                                 ]}
+//                             </div>
+//                         )}
+//                         IconBefore={() => (
+//                                 <div className='flex flex-row gap-4 px-2 items-center h-full'>
+//                                     <GoPaperclip size={20}/>
+//                                     <MdOutlineQuickreply key="quickReply" size={18} onClick={() => setModal(true)} />
+//                                 </div>
+//                             )}
+//                         ContainerStyles={"w-[50rem] border-none"}
+//                         InputStyles={"pl-5"}
+//                         value={isResponse}
+//                         onChange={(item) => setResponse(item.target.value)}
+//                     />
+//                 </div>
+//             </div>
+//         </>
+//     )
+// }
 
 export default function Inbox() {
   return (
     <div className='h-screen w-screen flex flex-row'>
         <LeftBar/>
         <Messages/>
-        <RespondArea/>
+        {/* <RespondArea/> */}
+        <RightBar/>
     </div>
   )
 }

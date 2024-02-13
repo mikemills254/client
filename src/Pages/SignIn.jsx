@@ -10,19 +10,21 @@ import { useFormik } from 'formik';
 import { useDispatch } from 'react-redux';
 import { io } from 'socket.io-client';
 import { login, failed } from '../../Utilities/authSlice';
+import { connectSuccess, connectFailure } from '../../Utilities/socketSlice';
 
-const connectToSocket = (token) => {
-    console.log(token)
-    const socket = io("http://localhost:9000", {
+export const ConnectToSocket = (data) => {
+    const socket = io.connect("http://localhost:9000", {
         auth: {
-            token: token
+            token: data
         }
-    })
+    });
 
     socket.on('connect', () => {
-        console.log("connected to socket", socket.id)
-    })
-}
+        localStorage.setItem("socket_id", socket.id)
+    });
+
+    return socket;
+};
 
 export default function SignIn() {
     const [isLoading, setIsLoading] = useState(false);
@@ -68,7 +70,20 @@ export default function SignIn() {
                 const data = await response.json();
                 dispatch(login({ user: data.data._id, token: data.token }))
                 localStorage.setItem("user", data.data._id)
-                connectToSocket(data.token);
+                const socketData = {
+                    token: data.token,
+                    role: data.data.role
+                }
+                const socket = ConnectToSocket(data.token);
+                if(socket){
+                    socket.emit("client_data", socketData)
+                    dispatch(connectSuccess(socket))
+                } else {
+                    dispatch(connectFailure())
+                    console.log("Unable to connect succesfully")
+                    return;
+                }
+
             } catch (error) {
                 console.error('Error signing up:', error.message);
                 alert(error.message);
