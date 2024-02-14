@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 import { BsCheck2All } from "react-icons/bs";
 
-export default function Notification({ sender, date, containerStyles, onAcceptClicked}) {
+export default function Notification({ username, date, containerStyles, onAcceptClicked}) {
 
     return (
         <div className={`${containerStyles} notification border-[1px] border-[#085ec5] min-h-[5rem] max-h-[8rem] p-2 rounded-md flex flex-row items-center justify-between shadow-sm cursor-pointer`}>
@@ -11,7 +11,7 @@ export default function Notification({ sender, date, containerStyles, onAcceptCl
                 </div>
             </section>
             <section className="w-full h-full flex flex-col">
-                <p className="font-semibold text-md text-[#085ec5]">{sender}</p>
+                <p className="font-semibold text-md text-[#085ec5]">{username}</p>
                 <p className="text-sm">{date}</p>
                 <small>12:30pm</small>
             </section>

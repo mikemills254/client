@@ -1,8 +1,8 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable react/prop-types */
 import LeftBar from '../Components/LeftBar'
 import Input from '../Components/Input'
 import { CiSearch } from "react-icons/ci";
-import Notification from '../Components/Notification';
 import Person from '../assets/person.jpeg'
 import { MdOutlineQuickreply } from "react-icons/md";
 import { HiOutlineArrowUpCircle } from "react-icons/hi2";
@@ -10,7 +10,30 @@ import { GoPaperclip } from "react-icons/go";
 import Proptypes from 'prop-types'
 import { Modal, Button } from 'flowbite-react';
 import { useEffect, useState } from 'react';
-import RightBar from '../Components/RightBar';
+import { IoCloseOutline } from "react-icons/io5";
+import { CiMail } from 'react-icons/ci'
+import { useSelector } from 'react-redux';
+import { selectSocket } from '../../Utilities/socketSlice';
+
+const getSpecificMessage = async(id) => {
+    try {
+        const url = `http://localhost:9000/api/v1/message/${id}`
+        const response = await fetch(url, {
+            method: 'GET'
+        })
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log(data)
+        return data
+        
+    } catch (error) {
+        console.log('error', error)
+        return;
+    }
+}
 
 const Notifs = ({ onClick, name, message, date, notifStyles}) => {
     return(
@@ -45,8 +68,114 @@ Notifs.prototype = {
     onClick: Proptypes.func,
 }
 
+const ResponseModal = ({ show, onClose, sender, message, date}) => {
+    const [isModal, setModal] = useState(false);
+    const [isResponse, setResponse] = useState('');
+    const [isMessage, setMessage] = useState('');
+    const [resDate, setResDate] = useState('');
+    const socket = useSelector(selectSocket);
+
+    const saveResponse = async () => {
+        const agentResponse = {
+            content: isMessage,
+            sender: localStorage.getItem("user"),
+            recipient: localStorage.getItem("message_sender"),
+            socketId: localStorage.getItem("recipient_token"),
+            agent: localStorage.getItem("socket_id")
+        };
+
+        try {
+            const url = "http://localhost:9000/api/v1/response";
+            const response = await fetch(url, {
+                method: 'POST',
+                body: JSON.stringify(agentResponse),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            if (socket) {
+                socket.socket.emit("agent_respond", data.data);
+                // Remove the event listener after emitting
+                socket.socket.off("agent_respond");
+            } else {
+                console.log('no socket');
+            }
+            setResponse(data.data);
+            setResDate(data.data.createdAt);
+        } catch (error) {
+            console.log(error);
+        } finally {
+            setMessage('');
+        }
+    };
+
+    return (
+        <>
+            <QuickReplyModal show={isModal} onClose={() => setModal(false)} selected={(item) => setMessage(item)} />
+            <div className={`modal fixed top-0 left-0 right-0 bottom-0 flex items-center ${show ? 'block' : 'hidden'}`} style={{ backgroundColor: "rgba(0, 0, 0, .15)"}}>
+                <div className='bg-white w-[40rem] flex flex-col items-center justify-between h-3/4 shadow-md rounded-md' style={{  margin: "0 auto" }}>
+                    <div className='flex flex-row items-center justify-between rounded-t-md  p-2 bg-red-400 w-full'>
+                        <p>{sender}</p>
+                        <IoCloseOutline
+                            size={25} 
+                            color='#0092cc' 
+                            className='cursor-pointer' 
+                            onClick={onClose}
+                        /> 
+                    </div>
+                    <div className='w-full bg-[red] h-full px-5'>
+                        <div className='bg-white h-full shadow-inner flex flex-col p-2 overflow-y-auto no-scrollbar gap-2'>
+                            <div className='flex flex-col border-l-2 bg-[#d7f2ff] border-[#0a7aeb] p-2'>
+                                <p className='text-sm font-bold text-[#068fff'>{message}</p>
+                                <small>{date}</small>
+                            </div>
+                            {isResponse && (
+                                <div className='flex flex-col border-r-2 bg-[#d7f2ff] border-[#0a7aeb] p-2'>
+                                    <p className='text-sm font-bold text-[#068fff'>{isResponse.sender}</p>
+                                    <p>{isResponse.content}</p>
+                                    <small>{isResponse.createdAt}</small>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <div className='w-full p-2 shadow-3xl bg-[red]'>
+                        <Input
+                            placeholder={"Type message here"}
+                            IconAfter={() => (
+                                <div className='flex flex-row gap-2 px-2 items-center'>
+                                    {[
+                                        <HiOutlineArrowUpCircle key="upArrow" size={23} onClick={() => saveResponse()}/>,
+                                    ]}
+                                </div>
+                            )}
+                            IconBefore={() => (
+                                <div className='flex flex-row gap-4 px-2 items-center h-full'>
+                                    <GoPaperclip size={20}/>
+                                    <MdOutlineQuickreply key="quickReply" size={18} onClick={() => setModal(true)} />
+                                </div>
+                            )}
+                            ContainerStyles={"border-none"}
+                            InputStyles={"pl-5"}
+                            value={isMessage}
+                            onChange={(item) => {setMessage(item.target.value)}}
+                        />
+                    </div>
+                </div>
+            </div>
+        </>
+        
+    );
+};
+
+
 const Messages = () => {
     const [myMessages, setMessages] = useState([]);
+    const [ isModal, setModal ] = useState(false)
+    const [ isSender, setSender ] = useState('')
+    const [ isInbox, setInbox ] = useState('')
+    const [ isDate, setDate ] = useState('')
 
     useEffect(() => {
         const getMessages = async () => {
@@ -69,34 +198,49 @@ const Messages = () => {
 
     const myId = localStorage.getItem("user");
 
-    const handleOpened = id => {
-        alert(id)
+    const handleOpened = async (item) => {
+        setModal(true)
+        const data = await getSpecificMessage(item._id)
+        setSender(data.data.sender)
+        setInbox(data.data.content)
+        setDate(data.data.createdAt)
+        localStorage.setItem("recipient_token", item.socketId)
+        localStorage.setItem("message_sender", item.sender)
     }
     
     return (
-        <div className='w-full h-full flex flex-col shadow-lg '>
-            <div className='p-3 flex flex-col bg-[#83dfff]'>
-                <p>Chats</p>
-                <Input
-                    placeholder={"search chats here"}
-                    IconBefore={CiSearch}
-                />
+        <>
+            <ResponseModal
+                show={isModal}
+                onClose={()=>setModal(false)}
+                sender={isSender}
+                message={isInbox}
+                date={isDate}
+            />
+            <div className='w-full h-full flex flex-col shadow-lg '>
+                <div className='p-3 flex flex-col bg-[#83dfff]'>
+                    <p>Chats</p>
+                    <Input
+                        placeholder={"search chats here"}
+                        IconBefore={CiSearch}
+                    />
+                </div>
+                <div className='flex flex-col overflow-y-auto no-scrollbar p-5'>
+                    {myMessages.map((item, index) => 
+                        item.agent === myId && (
+                            <Notifs
+                                key={index}
+                                name={item.username}
+                                date={new Date(item.createdAt).toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true })}
+                                message={item.content}
+                                notifStyles={item.urgency === 'Urgent' ? "bg-[red]" : ""}
+                                onClick={() => handleOpened(item)}
+                            />
+                        )
+                    )}
+                </div>
             </div>
-            <div className='flex flex-col overflow-y-auto no-scrollbar'>
-                {myMessages.map((item, index) => 
-                    item.agent === myId && (
-                        <Notifs
-                            key={index}
-                            name={item.sender}
-                            date={item.createdAt}
-                            message={item.content}
-                            notifStyles={item.urgency === 'Urgent' ? "bg-[red]" : ""}
-                            onClick={() => handleOpened(item._id)}
-                        />
-                    )
-                )}
-            </div>
-        </div>
+        </>
     );
 };
 
@@ -137,81 +281,80 @@ const QuickReplyModal = ({ show, onClose, selected }) => {
             show={show}
             onClose={onClose}
             dismissible
-            className='w-[50%]'
+            className='w-[50%] p-10'
             style={{ margin: "0px auto" }}
         >
-            <Modal.Header className='bg-[#d6f2ff]'>
+            <Modal.Header className='bg-[#d6f2ff] p-2 flex flex-row items-center rounded-t-ms'>
                 <p>Quick Responses</p>
             </Modal.Header>
-            <Modal.Body className='h-[25rem] overflow-y-auto no-scrollbar'>
+            <Modal.Body className='max-h-[20rem] overflow-y-auto no-scrollbar'>
                 {quickResponses.map((response, index) => (
                     <button key={index} className="quick-response-btn border-b-[1px] p-2 w-full flex items-start " onClick={() => handleResponseClick(response)}>
                         {response}
                     </button>
                 ))}
             </Modal.Body>
-            <Modal.Footer className='bg-[#d6f2ff] h-2'>
+            <Modal.Footer className='bg-[#d6f2ff] h-10 p-2'>
                 <Button onClick={onClose} className='text-[#085ec5]'>Cancel</Button>
             </Modal.Footer>
       </Modal>
     );
 };
-  
 
-// const RespondArea = () => {
-//     const [ isModal, setModal ] = useState(false)
-//     const [ isResponse, setResponse ] = useState('')
-//     return(
-//         <>
-//             <QuickReplyModal show={isModal} onClose={() => setModal(false)} selected={(item) => setResponse(item)} />
-//             <div className='w-full h-full flex flex-col'>
-//                 <div className='messages-top flex flex-row gap-2 items-center justify-between py-2 px-3 bg-[#83dfff]'>
-//                     <div className='flex flex-row items-center gap-3'>
-//                         <div className='h-10 w-10 rounded-full bg-white flex flex-col items-center justify-center text-[#007bff]'>
-//                             CQ
-//                         </div>
-//                         <p>Mike Mills</p>
-//                     </div>
-//                     <div className=''>
-//                         <CiSearch size={25}/>
-//                     </div>
-//                 </div>
-//                 <div className='h-full overflow-y-auto no-scrollbar shadow-inner p-3'>
-//                     <Notification/> 
-//                 </div>
-//                 <div className='h-16 flex flex-row items-center px-2 bg-[#83dfff] justify-center'>
-//                     <Input
-//                         placeholder={"Type message here"}
-//                         IconAfter={() => (
-//                             <div className='flex flex-row gap-2 px-2 items-center'>
-//                                 {[
-//                                     <HiOutlineArrowUpCircle key="upArrow" size={20}/>,
-//                                 ]}
-//                             </div>
-//                         )}
-//                         IconBefore={() => (
-//                                 <div className='flex flex-row gap-4 px-2 items-center h-full'>
-//                                     <GoPaperclip size={20}/>
-//                                     <MdOutlineQuickreply key="quickReply" size={18} onClick={() => setModal(true)} />
-//                                 </div>
-//                             )}
-//                         ContainerStyles={"w-[50rem] border-none"}
-//                         InputStyles={"pl-5"}
-//                         value={isResponse}
-//                         onChange={(item) => setResponse(item.target.value)}
-//                     />
-//                 </div>
-//             </div>
-//         </>
-//     )
-// }
+const RightBar = () => {
+    const [agents, setAgents] = useState([])
+    useEffect(() => {
+        const getAgents = async () => {
+            try {
+                const url = "http://localhost:9000/api/v1/agents"
+                const response = await fetch(url, {
+                    method: 'GET'
+                })
+                if (!response.ok) throw new Error('HTTP error! status: ${response.status}');
+                const data = await response.json()
+                setAgents(data.data)
+            } catch (error) {
+                console.log(error.message);
+                return;
+            }
+        }
+        getAgents()
+    },[])
+    return(
+        <div className='flex flex-col w-[30rem] shadow-lg'>
+            <div className='agents-container flex flex-col max-h-[40rem] overflow-y-auto no-scrollbar'>
+                <div className='bg-[#32d0fe] h-20 flex flex-row items-center px-2'>
+                    <p>Agents</p>
+                </div>
+                <div className='flex flex-col gap-2 p-1'>
+                    {agents.map((agent, index) => {
+                        const initials = agent.username.split(' ').map(word => word[0]).join('');
+                        return(
+                            <div key={index} className='flex flex-row items-center gap-2 rounded-md hover:bg-[#effaff] py-2 cursor-pointer px-2'>
+                                <div className='flex flex-row items-center justify-center'>
+                                    <div className='flex flex-col items-center justify-center h-10 w-10 rounded-full'>
+                                        <p>{initials}</p>
+                                    </div>
+                                </div>
+                                <div className='w-full flex flex-col'>
+                                    <small className='font-semibold text-md'>{agent.username}</small>
+                                    <small>{agent.email}</small>
+                                </div>
+                                <CiMail size={25}/>
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+        </div>
+    )
+}
 
 export default function Inbox() {
   return (
     <div className='h-screen w-screen flex flex-row'>
         <LeftBar/>
         <Messages/>
-        {/* <RespondArea/> */}
         <RightBar/>
     </div>
   )
